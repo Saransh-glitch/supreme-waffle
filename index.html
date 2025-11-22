@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Interview Analysis System Architecture</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+
+        /* --- Modern Animations --- */
+        .slide { display: none; }
+        .slide.active { display: flex; }
+
+        /* Staggered Entry Animations */
+        .animate-entry {
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .delay-100 { animation-delay: 0.1s; }
+        .delay-200 { animation-delay: 0.2s; }
+        .delay-300 { animation-delay: 0.3s; }
+        .delay-400 { animation-delay: 0.4s; }
+        .delay-500 { animation-delay: 0.5s; }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* PDF Viewer Container */
+        .pdf-container {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 0.5rem;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Compact header tweaks for narrow screens */
+        @media (max-width: 420px) {
+          header { padding: 0.45rem 0.6rem; }
+          header .logo-title { font-size: 0.95rem; }
+          #progress-bar { height: 6px !important; }
+          .header-controls .btn { padding: 0.35rem 0.55rem; font-size: 12px; }
+          .header-controls .btn-icon { display: inline-flex; }
+          .header-controls .btn-text { display: none; }
+        }
+
+        /* Larger screens show text labels */
+        @media (min-width: 421px) {
+          .header-controls .btn-icon { display: none; }
+          .header-controls .btn-text { display: inline-block; }
+        }
+
+        /* small visual polish */
+        .btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          border-radius: 0.5rem;
+          border: 1px solid rgba(15,23,42,0.06);
+          box-shadow: 0 1px 2px rgba(2,6,23,0.04);
+        }
+
+        .counter-wrap {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 h-screen w-screen flex flex-col overflow-hidden selection:bg-blue-100 selection:text-blue-900">
+
+    <!-- Progress Bar -->
+    <div class="w-full h-1.5 bg-slate-200 flex-shrink-0">
+        <div id="progress-bar" class="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-500 ease-out" style="width: 0%"></div>
+    </div>
+
+    <!-- Header (moved navigation here; footer removed) -->
+    <header class="px-4 py-3 md:px-6 md:py-4 flex justify-between items-center z-30 bg-white/80 backdrop-blur-md flex-shrink-0 border-b border-slate-200 shadow-sm transition-all duration-200">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 text-white p-1.5 rounded-lg shadow-lg shadow-blue-500/20">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+            </div>
+            <div class="text-slate-800 font-bold tracking-tight leading-none logo-title">
+                <div class="text-sm md:text-base">INTERVIEW</div>
+                <div class="text-blue-600 text-sm md:text-base">INTELLIGENCE</div>
+            </div>
+        </div>
+
+        <!-- Controls moved to header: slide counter + nav buttons -->
+        <div class="header-controls flex items-center gap-3">
+            <div class="counter-wrap bg-slate-100 px-3 py-1 rounded-full border border-slate-200 flex items-center gap-3">
+                <button id="prev-btn" class="btn btn-prev px-3 py-1 bg-white text-slate-700 disabled:opacity-50" aria-label="Previous slide">
+                    <span class="btn-icon" aria-hidden="true">◀</span>
+                    <span class="btn-text text-xs font-semibold">Previous</span>
+                </button>
+
+                <span id="slide-counter" class="text-slate-600 text-xs font-bold tracking-widest">1 / 7</span>
+
+                <button id="next-btn" class="btn btn-next px-3 py-1 bg-blue-600 text-white disabled:opacity-50" aria-label="Next slide">
+                    <span class="btn-text text-xs font-semibold">Next</span>
+                    <span class="btn-icon" aria-hidden="true">▶</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow relative w-full max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-center overflow-hidden z-10">
+
+        <!-- SLIDE 1: INTRODUCTION -->
+        <div class="slide active flex-col items-center justify-center text-center h-full w-full" data-index="0">
+            <div class="animate-entry">
+                <span class="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border border-blue-100 shadow-sm mb-8 inline-block">
+                    Architecture & Design v1.0
+                </span>
+            </div>
+
+            <h1 class="animate-entry delay-100 text-4xl md:text-6xl lg:text-7xl font-extrabold mb-6 text-slate-900 tracking-tight leading-tight">
+                Real-time Interview<br>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Analysis System</span>
+            </h1>
+
+            <p class="animate-entry delay-200 text-lg md:text-xl text-slate-500 font-light mb-12 max-w-3xl leading-relaxed px-4">
+                A dual-channel intelligence layer that listens, thinks, and analyzes live meetings without latency.
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl px-4">
+                <div class="animate-entry delay-300 group bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-200 hover:-translate-y-1 transition-all duration-300">
+                    <div class="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-blue-600 transition-colors duration-300 mx-auto md:mx-0">
+                        <svg class="w-6 h-6 text-blue-600 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900 mb-2">Dual Capture</h3>
+                    <p class="text-slate-500 text-sm leading-relaxed">Separate high-fidelity streams for Mic and System audio.</p>
+                </div>
+
+                <div class="animate-entry delay-400 group bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-purple-200 hover:-translate-y-1 transition-all duration-300">
+                    <div class="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-purple-600 transition-colors duration-300 mx-auto md:mx-0">
+                        <svg class="w-6 h-6 text-purple-600 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"></path></svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900 mb-2">Live Diarization</h3>
+                    <p class="text-slate-500 text-sm leading-relaxed">Instant "Who is speaking" detection via Deepgram.</p>
+                </div>
+
+                <div class="animate-entry delay-500 group bg-white p-6 md:p-8 rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-green-200 hover:-translate-y-1 transition-all duration-300">
+                    <div class="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-green-600 transition-colors duration-300 mx-auto md:mx-0">
+                        <svg class="w-6 h-6 text-green-600 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900 mb-2">Async Analysis</h3>
+                    <p class="text-slate-500 text-sm leading-relaxed">Zero-lag fact checking & scoring via background workers.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 2: KEY FEATURES -->
+        <div class="slide flex-col items-start justify-center h-full w-full" data-index="1">
+            <div class="w-full mb-8 pl-4 border-l-[6px] border-blue-600 animate-entry">
+                <h2 class="text-3xl md:text-4xl font-bold text-slate-900">Core Capabilities</h2>
+                <p class="text-slate-500 mt-2">What makes this system production-grade?</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full h-full overflow-y-auto pb-4 px-1">
+                <!-- Card 1 -->
+                <div class="animate-entry delay-100 bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex gap-4">
+                    <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">Dual-Channel Capture</h3>
+                        <p class="text-slate-600 text-sm mt-2 leading-relaxed">We don't mix audio. The interviewer (Microphone) and Candidate (System Loopback) are recorded on separate tracks, ensuring 100% speaker separation accuracy.</p>
+                    </div>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="animate-entry delay-200 bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex gap-4">
+                    <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">Real-Time Intelligence</h3>
+                        <p class="text-slate-600 text-sm mt-2 leading-relaxed">Utilizes Deepgram's streaming API for millisecond-latency transcription. The user sees captions instantly while the system tags "Speaker 00" vs "Speaker 01".</p>
+                    </div>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="animate-entry delay-300 bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex gap-4">
+                    <div class="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">Asynchronous Workers</h3>
+                        <p class="text-slate-600 text-sm mt-2 leading-relaxed">Heavy lifting (Fact Checking, LLM Analysis) is offloaded to Celery/Redis. This ensures the live WebSocket connection never lags or drops frames.</p>
+                    </div>
+                </div>
+
+                <!-- Card 4 -->
+                <div class="animate-entry delay-400 bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex gap-4">
+                    <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900">Resilience & Cleanup</h3>
+                        <p class="text-slate-600 text-sm mt-2 leading-relaxed">Includes "Force-Kill" logic for stuck connections and exponential backoff for network drops. The system self-heals if Wi-Fi flickers.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 3: ARCHITECTURE DIAGRAM -->
+        <div class="slide flex-col items-center justify-center h-full w-full" data-index="2">
+            <div class="flex justify-between items-end w-full mb-4 border-b border-slate-200 pb-3 animate-entry">
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-900">High-Level Architecture</h2>
+                    <p class="text-slate-500 text-xs md:text-sm mt-1">The component map of the entire system.</p>
+                </div>
+                <button onclick="openFullscreen('architecture diagram.pdf')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs md:text-sm font-semibold shadow-sm flex items-center gap-2 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    View Fullscreen
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full h-[calc(100vh-200px)]">
+                <!-- Legend / Explanation -->
+                <div class="col-span-12 lg:col-span-3 space-y-4 overflow-y-auto pr-2">
+                    <div class="animate-entry delay-100 bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:border-blue-300 transition-colors">
+                        <h4 class="font-bold text-slate-800 flex items-center mb-2">
+                            <span class="w-3 h-3 bg-blue-500 rounded-full mr-2"></span> Client Side
+                        </h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">
+                            Flutter app captures the mic. A separate Python .exe helper captures system audio. Both send binary PCM data to the server.
+                        </p>
+                    </div>
+                    <div class="animate-entry delay-200 bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-300 transition-colors">
+                        <h4 class="font-bold text-slate-800 flex items-center mb-2">
+                            <span class="w-3 h-3 bg-indigo-500 rounded-full mr-2"></span> API Gateway
+                        </h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">
+                            FastAPI acts as a pass-through. It authenticates users via Firebase, checks credits, and forwards streams to Deepgram.
+                        </p>
+                    </div>
+                    <div class="animate-entry delay-300 bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:border-green-300 transition-colors">
+                        <h4 class="font-bold text-slate-800 flex items-center mb-2">
+                            <span class="w-3 h-3 bg-green-500 rounded-full mr-2"></span> Worker Swarm
+                        </h4>
+                        <p class="text-xs text-slate-600 leading-relaxed">
+                            Once the call ends, a job is pushed to Redis. Celery workers wake up, call Anthropic (Claude) for insights, and save results to Firestore.
+                        </p>
+                    </div>
+                </div>
+                <!-- PDF Viewer -->
+                <div class="col-span-12 lg:col-span-9 bg-slate-800 rounded-xl border border-slate-300 shadow-inner overflow-hidden h-full relative group">
+                    <iframe src="architecture diagram.pdf" class="pdf-container bg-white" title="Architecture Diagram"></iframe>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 4: DATA FLOW -->
+        <div class="slide flex-col items-center justify-center h-full w-full" data-index="3">
+            <div class="flex justify-between items-end w-full mb-4 border-b border-slate-200 pb-3 animate-entry">
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-900">Data Flow Cycle</h2>
+                    <p class="text-slate-500 text-xs md:text-sm mt-1">How data moves from microphone to database.</p>
+                </div>
+                <button onclick="openFullscreen('data flow diagram .pdf')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs md:text-sm font-semibold shadow-sm flex items-center gap-2 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                    View Fullscreen
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full h-[calc(100vh-200px)]">
+                <div class="col-span-12 lg:col-span-3 space-y-3 overflow-y-auto pr-2">
+                    <!-- Step 1 -->
+                    <div class="animate-entry delay-100 relative pl-6 border-l-2 border-slate-200 hover:border-blue-500 transition-colors py-2">
+                        <div class="absolute -left-[9px] top-2 w-4 h-4 rounded-full bg-blue-500 border-4 border-white shadow-sm"></div>
+                        <h4 class="font-bold text-slate-900 text-sm">1. Ingestion</h4>
+                        <p class="text-xs text-slate-500 mt-1">Audio streams initiate WebSocket handshake. Credits are deducted. Connections to Deepgram established.</p>
+                    </div>
+                    <!-- Step 2 -->
+                    <div class="animate-entry delay-200 relative pl-6 border-l-2 border-slate-200 hover:border-purple-500 transition-colors py-2">
+                        <div class="absolute -left-[9px] top-2 w-4 h-4 rounded-full bg-purple-500 border-4 border-white shadow-sm"></div>
+                        <h4 class="font-bold text-slate-900 text-sm">2. Live Loop</h4>
+                        <p class="text-xs text-slate-500 mt-1">Audio Up -> Text Down. Server buffers finalized sentences in memory for the final report.</p>
+                    </div>
+                    <!-- Step 3 -->
+                    <div class="animate-entry delay-300 relative pl-6 border-l-2 border-slate-200 hover:border-yellow-500 transition-colors py-2">
+                        <div class="absolute -left-[9px] top-2 w-4 h-4 rounded-full bg-yellow-500 border-4 border-white shadow-sm"></div>
+                        <h4 class="font-bold text-slate-900 text-sm">3. Handoff</h4>
+                        <p class="text-xs text-slate-500 mt-1">User clicks "Analyze". Server merges both transcripts into one conversation history and kills connections.</p>
+                    </div>
+                    <!-- Step 4 -->
+                    <div class="animate-entry delay-400 relative pl-6 border-l-2 border-slate-200 hover:border-green-500 transition-colors py-2">
+                        <div class="absolute -left-[9px] top-2 w-4 h-4 rounded-full bg-green-500 border-4 border-white shadow-sm"></div>
+                        <h4 class="font-bold text-slate-900 text-sm">4. Analysis</h4>
+                        <p class="text-xs text-slate-500 mt-1">Worker grabs the job. Runs Speaker Inference -> Fact Mining -> Scorecard Generation -> DB Save.</p>
+                    </div>
+                </div>
+
+                <div class="col-span-12 lg:col-span-9 bg-slate-800 rounded-xl border border-slate-300 shadow-inner overflow-hidden h-full relative">
+                    <iframe src="data flow diagram .pdf" class="pdf-container bg-white" title="Data Flow Diagram"></iframe>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 5: SEQUENCE DIAGRAM -->
+        <div class="slide flex-col items-center justify-center h-full w-full" data-index="4">
+            <div class="flex justify-between items-end w-full mb-4 border-b border-slate-200 pb-3 animate-entry">
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-900">System Sequence</h2>
+                    <p class="text-slate-500 text-xs md:text-sm mt-1">Chronological interaction between Flutter, Server, and AI.</p>
+                </div>
+                <button onclick="openFullscreen('sequence diagram.pdf')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs md:text-sm font-semibold shadow-sm flex items-center gap-2 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                    View Fullscreen
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full h-[calc(100vh-200px)]">
+                <div class="col-span-12 lg:col-span-3 flex flex-col justify-center space-y-6 p-4 bg-white rounded-xl border border-slate-200 shadow-sm h-fit">
+                    <h4 class="font-bold text-slate-700 uppercase text-xs tracking-wider border-b border-slate-100 pb-2">Phase Breakdown</h4>
+
+                    <div class="space-y-1">
+                        <span class="text-xs font-bold text-blue-600 block">Phase 1: Initialization</span>
+                        <p class="text-xs text-slate-500">User Login -> Credit Check -> Helper Process Spawn.</p>
+                    </div>
+
+                    <div class="space-y-1">
+                        <span class="text-xs font-bold text-purple-600 block">Phase 2: Streaming</span>
+                        <p class="text-xs text-slate-500">Parallel Websockets active. 16kHz (Mic) + 48kHz (System).</p>
+                    </div>
+
+                    <div class="space-y-1">
+                        <span class="text-xs font-bold text-yellow-600 block">Phase 3: Async AI</span>
+                        <p class="text-xs text-slate-500">Server buffers -> Redis Queue -> Celery Worker execution.</p>
+                    </div>
+                </div>
+
+                <div class="col-span-12 lg:col-span-9 bg-slate-800 rounded-xl border border-slate-300 shadow-inner h-full relative">
+                    <iframe src="sequence diagram.pdf" class="pdf-container bg-white" title="Sequence Diagram"></iframe>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 6: PRODUCTION READINESS -->
+        <div class="slide flex-col items-start justify-start h-full w-full overflow-y-auto" data-index="5">
+            <div class="w-full mb-8 animate-entry">
+                <h2 class="text-3xl md:text-4xl font-bold text-slate-900 mb-2">Production Readiness</h2>
+                <div class="flex items-center gap-3">
+                    <span class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold border border-yellow-200 shadow-sm">Status: Late-Stage PoC</span>
+                    <span class="text-slate-500 text-sm">Stable architecture. Pending final polish.</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full pb-8">
+
+                <!-- Strengths -->
+                <div class="animate-entry delay-100 col-span-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
+                    <h3 class="text-green-700 font-bold text-lg mb-4 flex items-center gap-2 border-b border-slate-100 pb-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Current Strengths
+                    </h3>
+                    <ul class="space-y-4">
+                        <li class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold text-xs flex-shrink-0">✓</div>
+                            <div>
+                                <p class="text-sm font-bold text-slate-800">Scalable Design</p>
+                                <p class="text-xs text-slate-500 mt-0.5">Redis decoupling allows adding infinite workers horizontally.</p>
+                            </div>
+                        </li>
+                        <li class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold text-xs flex-shrink-0">✓</div>
+                            <div>
+                                <p class="text-sm font-bold text-slate-800">Resilience</p>
+                                <p class="text-xs text-slate-500 mt-0.5">Reconnect logic handles poor network conditions gracefully.</p>
+                            </div>
+                        </li>
+                        <li class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-green-600 font-bold text-xs flex-shrink-0">✓</div>
+                            <div>
+                                <p class="text-sm font-bold text-slate-800">Cost Optimized</p>
+                                <p class="text-xs text-slate-500 mt-0.5">Aggressive stream closing prevents billing leaks.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Gaps -->
+                <div class="animate-entry delay-200 col-span-1 bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
+                    <h3 class="text-red-700 font-bold text-lg mb-4 flex items-center gap-2 border-b border-slate-100 pb-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                        Backend Gaps
+                    </h3>
+                    <ul class="space-y-4">
+                        <li class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold text-xs flex-shrink-0">!</div>
+                            <div>
+                                <p class="text-sm font-bold text-slate-800">Sticky Sessions</p>
+                                <p class="text-xs text-slate-500 mt-0.5">Load balancer config needed to ensure /ws and /ws-speaker hit the same server pod.</p>
+                            </div>
+                        </li>
+                        <li class="flex gap-3">
+                            <div class="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-bold text-xs flex-shrink-0">!</div>
+                            <div>
+                                <p class="text-sm font-bold text-slate-800">Telemetry</p>
+                                <p class="text-xs text-slate-500 mt-0.5">Need centralized logs (Sentry/Datadog) for production debugging.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 7: WINDOWS CHECKLIST (NEW) -->
+        <div class="slide flex-col items-center justify-center h-full w-full" data-index="6">
+            <div class="text-center mb-10 animate-entry">
+                <div class="bg-blue-100 text-blue-700 px-4 py-1 rounded-full text-xs font-bold inline-block mb-4 border border-blue-200">
+                    OS SPECIFIC
+                </div>
+                <h2 class="text-4xl md:text-5xl font-bold text-slate-900 mb-3">Windows Production Checklist</h2>
+                <p class="text-slate-500 max-w-xl mx-auto">Critical steps for deploying the desktop client to end users.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-6xl px-6">
+
+                <!-- Item 1 -->
+                <div class="animate-entry delay-100 bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-300 transition-all group cursor-default">
+                    <div class="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center mb-4 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                        <svg class="w-6 h-6 text-slate-600 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900 mb-2">Code Signing</h3>
+                    <p class="text-sm text-slate-500 leading-relaxed">
+                        Purchase an EV Certificate to sign the Flutter `.exe` and the Python helper. This prevents the scary "Windows protected your PC" SmartScreen popup.
+                    </p>
+                </div>
+
+                <!-- Item 2 -->
+                <div class="animate-entry delay-200 bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-300 transition-all group cursor-default">
+                    <div class="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center mb-4 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                        <svg class="w-6 h-6 text-slate-600 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900 mb-2">Unified Installer</h3>
+                    <p class="text-sm text-slate-500 leading-relaxed">
+                        Use Inno Setup or MSIX to bundle the Flutter app and the Python `/dist` folder into a single install wizard that sets paths correctly.
+                    </p>
+                </div>
+
+                <!-- Item 3 -->
+                <div class="animate-entry delay-300 bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-300 transition-all group cursor-default">
+                    <div class="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center mb-4 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                        <svg class="w-6 h-6 text-slate-600 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900 mb-2">Auto-Updater</h3>
+                    <p class="text-sm text-slate-500 leading-relaxed">
+                        Integrate sparkle or msix-updater to push bug fixes. Critical for beta software where helper binaries might need frequent patching.
+                    </p>
+                </div>
+
+                <!-- Item 4 -->
+                <div class="animate-entry delay-400 bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-300 transition-all group cursor-default">
+                    <div class="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center mb-4 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                        <svg class="w-6 h-6 text-slate-600 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900 mb-2">AV Allow-listing</h3>
+                    <p class="text-sm text-slate-500 leading-relaxed">
+                        Submit the compiled `speaker_helper.exe` to Microsoft Security Intelligence to prevent false positive flags from Windows Defender.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- NOTE: Footer removed per request -->
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const slides = document.querySelectorAll('.slide');
+            const progressBar = document.getElementById('progress-bar');
+            const slideCounter = document.getElementById('slide-counter');
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+
+            let currentSlide = 0;
+            const totalSlides = slides.length;
+
+            // --- PDF Logic (New Window) ---
+            window.openFullscreen = function(pdfUrl) {
+                window.open(pdfUrl, '_blank');
+            }
+
+            function updateSlide() {
+                slides.forEach((slide, index) => {
+                    if (index === currentSlide) {
+                        slide.classList.add('active');
+                    } else {
+                        slide.classList.remove('active');
+                    }
+                });
+
+                // Update Progress
+                const progress = ((currentSlide + 1) / totalSlides) * 100;
+                progressBar.style.width = `${progress}%`;
+                slideCounter.innerText = `${currentSlide + 1} / ${totalSlides}`;
+
+                // Button States
+                prevBtn.disabled = currentSlide === 0;
+                nextBtn.disabled = currentSlide === totalSlides - 1;
+
+                // Update next button label at end
+                if (currentSlide === totalSlides - 1) {
+                  nextBtn.innerText = window.innerWidth <= 420 ? '▶' : 'Finish';
+                  // restore icon if small screen
+                  if (window.innerWidth <= 420) {
+                    // nothing else - icon mode handled via CSS and JS below
+                  }
+                } else {
+                  // not last slide
+                  // restore text depending on width handled by responsive function
+                  updateNavLabelsForWidth();
+                }
+            }
+
+            function nextSlide() {
+                if (currentSlide < totalSlides - 1) {
+                    currentSlide++;
+                    updateSlide();
+                }
+            }
+
+            function prevSlide() {
+                if (currentSlide > 0) {
+                    currentSlide--;
+                    updateSlide();
+                }
+            }
+
+            // Event Listeners
+            nextBtn.addEventListener('click', nextSlide);
+            prevBtn.addEventListener('click', prevSlide);
+
+            document.addEventListener('keydown', (e) => {
+                // Space or ArrowRight => next
+                if (e.key === 'ArrowRight' || e.key === ' ') {
+                    // avoid triggering Next when focus inside input or textarea
+                    const active = document.activeElement;
+                    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
+                    e.preventDefault();
+                    nextSlide();
+                }
+                if (e.key === 'ArrowLeft') prevSlide();
+            });
+
+            // Responsive label/icons in header controls
+            function updateNavLabelsForWidth() {
+                const prev = prevBtn;
+                const next = nextBtn;
+                const isSmall = window.innerWidth <= 420;
+
+                if (isSmall) {
+                    // show icons only (CSS hides text on small screens but ensure aria label stays)
+                    prev.innerHTML = '<span class="btn-icon">◀</span>';
+                    next.innerHTML = '<span class="btn-icon">▶</span>';
+                } else {
+                    // show text labels and keep icons hidden (icons were set in CSS)
+                    prev.innerHTML = '<span class="btn-text">Previous</span>';
+                    next.innerHTML = (currentSlide === totalSlides - 1) ? '<span class="btn-text">Finish</span>' : '<span class="btn-text">Next</span>';
+                }
+            }
+
+            window.addEventListener('resize', () => {
+                updateNavLabelsForWidth();
+                updateSlide();
+            });
+
+            // Initialize
+            updateNavLabelsForWidth();
+            updateSlide();
+        });
+    </script>
+</body>
+</html>
